@@ -1,0 +1,32 @@
+# Risk configuration for strategy-lab.
+#
+# IMPORTANT: This file documents intended future risk controls for
+# simulated and, eventually, real-money execution. No live or paper
+# trading execution exists yet. Nothing in this file activates any
+# real trading behavior. Values below are illustrative placeholders,
+# not tuned or approved risk limits.
+
+mode: "simulation_only"   # simulation_only is the only supported mode today
+
+research_limits:
+  # Soft limits applied only within backtests/simulations, to keep
+  # research scenarios realistic (e.g. avoid absurd position sizes).
+  max_position_pct_of_equity: 0.10
+  max_gross_leverage: 1.0
+  max_simulated_drawdown_pct: 0.30   # informational threshold for flagging runs
+
+future_live_controls:
+  # Not implemented. Placeholder documenting what will be required
+  # before any real-money execution is considered, in a future task,
+  # with explicit human authorization.
+  enabled: false
+  max_position_pct_of_equity: null
+  max_daily_loss_pct: null
+  max_gross_leverage: null
+  kill_switch: null
+  requires_human_authorization: true
+
+notes: >
+  Risk limits here are NOT enforced by any execution engine because no
+  execution engine exists yet. Enforcement code must be added alongside,
+  not after, any future execution capability.

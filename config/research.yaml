@@ -1,0 +1,41 @@
+# Research-phase configuration defaults for strategy-lab.
+#
+# This file governs offline, historical research and simulation only.
+# It has no connection to any live or paper-trading execution path
+# (none exists yet — see config/risk.yaml and README.md).
+
+project:
+  phase: "research"          # research | validation (no "production" phase exists yet)
+  random_seed: 42            # fixed seed for reproducibility of any stochastic step
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  # Data source adapters are not implemented yet. When added, they must
+  # document survivorship-bias handling and point-in-time availability.
+
+splits:
+  # Strategy research must separate these three periods before any
+  # hypothesis is tested. Dates are placeholders until a concrete
+  # dataset and hypothesis are defined.
+  train_start: null
+  train_end: null
+  validation_start: null
+  validation_end: null
+  test_start: null
+  test_end: null
+  # The test period must remain untouched until a strategy is finalized
+  # on train/validation data.
+
+costs:
+  # Placeholder assumptions only. Must be replaced with instrument- and
+  # venue-specific figures before any backtest result is treated as
+  # informative.
+  commission_bps: 0.0
+  slippage_bps: 0.0
+  spread_bps: 0.0
+
+experiments:
+  registry_path: "experiments/registry.csv"
+  # Every experiment run should be recorded in the registry with its
+  # hypothesis, parameters, data range, and outcome.
