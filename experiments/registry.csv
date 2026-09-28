@@ -1,1 +1,1 @@
-experiment_id,date,hypothesis,strategy_id,data_start,data_end,split,params,outcome,notes
+experiment_id,date,git_commit,hypothesis,strategy_id,data_start,data_end,split,params,outcome,notes

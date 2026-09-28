@@ -76,15 +76,44 @@ These principles apply to any research or code contributed to this project:
 
 ## Current development phase
 
-**Research foundation only.** This repository currently contains project
-structure, configuration, and documentation — no data pipelines, indicators,
-strategies, backtests, or validation logic have been implemented yet.
+**Milestone 1: minimum deterministic research pipeline.** This milestone
+exists to validate the plumbing of the research pipeline — not to find a
+profitable strategy. It adds:
+
+- a canonical OHLCV validation layer (`strategy_lab.data.ohlcv`);
+- an EMA indicator (`strategy_lab.indicators.ema`);
+- a deliberately simple long-only EMA crossover strategy
+  (`strategy_lab.strategies.ema_crossover`), used only to exercise the
+  pipeline;
+- a deterministic, long-only, single-instrument backtest engine
+  (`strategy_lab.backtest.engine`) with configurable commission and
+  slippage;
+- a minimal metrics layer (`strategy_lab.backtest.metrics`): total return,
+  maximum drawdown, and completed trade count.
+
+All data used in tests is deterministic synthetic OHLCV data. No external
+market data is downloaded.
 
 **Live trading, paper trading, autonomous trading agents, and order execution
 are intentionally not implemented.** No connection exists to Coinbase,
 TradingView, or any broker/exchange. Such integrations may only be added in
 future work, deliberately and incrementally, once the research and validation
-layers are mature enough to justify them.
+layers are mature enough to justify them. Nothing in this milestone should be
+read as a claim that the EMA crossover strategy is profitable or
+production-ready — it is test scaffolding.
+
+### Execution timing semantics
+
+The backtest engine treats `signal[i]` as the desired position *as of the
+close of bar i*. That signal cannot execute using bar i's own close, or any
+earlier price — it is shifted forward and executes no earlier than **bar
+i + 1's open**. Bar i+1's open is used (rather than its close) because it is
+the first price at which a decision made at bar i's close could plausibly be
+acted on; using bar i+1's close would grant the strategy an extra bar of
+information it could not have had in practice. See
+`strategy_lab.backtest.engine` for the full rationale and
+`tests/test_backtest_engine.py` for a fixture-based proof that a crossover
+known only at close T does not execute at close T.
 
 ## Setting up the Python environment
 
@@ -102,6 +131,27 @@ pip install -e ".[dev]"
 pytest
 ```
 
+## Minimal example
+
+```python
+import pandas as pd
+
+from strategy_lab.backtest import BacktestConfig, run_backtest
+from strategy_lab.data import validate_ohlcv
+from strategy_lab.strategies import generate_signals
+
+ohlcv = validate_ohlcv(my_raw_dataframe)  # columns: timestamp, open, high, low, close, volume
+signals = generate_signals(ohlcv["close"], fast_period=10, slow_period=30)
+
+result = run_backtest(
+    ohlcv,
+    signals["signal"],
+    BacktestConfig(initial_cash=100_000.0, commission_rate=0.001, slippage_rate=0.0005),
+)
+
+print(result.final_equity, result.metrics)
+```
+
 ## Running linting
 
 ```bash
@@ -111,7 +161,8 @@ ruff check .
 ## Configuration
 
 - `config/research.yaml` — research/simulation defaults (data paths, train/
-  validation/test split placeholders, cost assumptions, experiment registry).
+  validation/test split placeholders, cost assumptions, backtest defaults,
+  experiment registry).
 - `config/risk.yaml` — risk limits for simulation only; documents (but does
   not enable) future real-money risk controls.
 - `.env.example` — template for environment variables; copy to `.env` (never

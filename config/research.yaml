@@ -39,3 +39,13 @@ experiments:
   registry_path: "experiments/registry.csv"
   # Every experiment run should be recorded in the registry with its
   # hypothesis, parameters, data range, and outcome.
+
+backtest:
+  # Illustrative research defaults only — not a claim that these values are
+  # realistic for any specific instrument, venue, or account size.
+  initial_cash: 100000.0
+  # Execution convention (see strategy_lab.backtest.engine for the exact
+  # semantics and rationale): a signal known at a bar's close executes no
+  # earlier than the following bar's open. This is fixed engine behavior,
+  # not a configurable option, so it is documented rather than parameterized.
+  execution_timing: "next_bar_open"
