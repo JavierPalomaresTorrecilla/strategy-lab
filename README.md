@@ -183,6 +183,65 @@ python scripts/run_parity_report.py
 partitions — it never constructs a signal, backtest, or parity comparison
 from `test`-partition rows.
 
+**Milestone 3: fixed-parameter expanding-history temporal validation.**
+This milestone is about defining a validation methodology that makes
+overfitting and self-deception harder — it is **not** about finding
+profitable parameters, and it introduces no parameter optimization or
+performance ranking anywhere. It adds:
+
+- **temporal validation** (`strategy_lab.validation.temporal_validation`):
+  one continuous, causal simulation over the full TRAIN ∪ VALIDATION range
+  (2010–2022). 2010 is a burn-in/state-initialization period — EMA and
+  position state evolve causally through it, but it contributes zero
+  evaluation statistics. Evaluation is exactly the 12 contiguous
+  calendar-year windows 2011–2022, with no capital reset at any boundary
+  and no forced liquidation of a position that spans a year end;
+- **round-trip accounting** (`strategy_lab.validation.round_trips`): closed
+  trades reconstructed from the unmodified Milestone 1 `Trade` records —
+  window *performance* always comes from the continuous mark-to-market
+  equity curve, never from attributing a whole trade's P&L to whichever
+  calendar year it happened to exit in;
+- **parameter/cost sensitivity** (`strategy_lab.validation.robustness`): a
+  small, preregistered, hard-capped (≤25) 15-cell EMA neighborhood around
+  the (10, 30) baseline, and a 3-tier cost-stress matrix whose baseline
+  exactly reproduces `scripts/run_parity_report.py`'s cost assumptions.
+  The two axes are never crossed (15 + 2 runs, never 45), and no report
+  ever ranks, sorts by performance, or selects a "best" configuration —
+  only descriptive, mechanically-labeled fragility diagnostics;
+  three fixed reference-engine/VectorBT parity spot checks
+  (`(8,25)`, `(10,30)`, `(12,35)`) are predefined before any result is
+  observed, never chosen after seeing the grid;
+- **one benchmark** (`strategy_lab.validation.benchmark`): price-only
+  buy-and-hold on the same canonical raw price series, at the same
+  baseline cost assumptions, with no dividend adjustment and no synthetic
+  terminal sale — explicitly labeled `"price-only; dividends excluded"`
+  and never presented as an economically complete comparison;
+- a **corporate-action runtime guard**
+  (`strategy_lab.validation.corporate_actions`) that fails the real-data
+  report loudly if a non-zero stock split is found in the allowed research
+  range, rather than silently assuming raw OHLC execution handles it;
+- an **experiment registry** (`strategy_lab.validation.registry`) extending
+  `experiments/registry.csv` with a `finalized`/`dev` reproducibility
+  contract and Git-revision/snapshot/config lineage — see
+  `experiments/README.md`.
+
+The reference engine (`strategy_lab.backtest.engine`,
+`strategy_lab.backtest.metrics`, `strategy_lab.backtest.trades`) is
+unmodified by Milestone 3.
+
+### Running the offline temporal-validation report (human-run only)
+
+```bash
+# OFFLINE -- consumes an already-existing processed snapshot; never fetches
+# data itself. Requires STRATEGY_LAB_DATA_ROOT and the `parity` extra.
+# If no processed snapshot exists yet, run scripts/fetch_dataset.py first.
+python scripts/run_temporal_validation.py
+```
+
+Unlike `scripts/fetch_dataset.py`, this script performs no network access
+at all — `scripts/fetch_dataset.py` remains the only network-dependent
+script in this project.
+
 ## Setting up the Python environment
 
 Requires Python 3.11+ (developed against 3.14 locally; check with `python3 --version`).

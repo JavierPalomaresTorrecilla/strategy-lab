@@ -64,3 +64,51 @@ backtest:
   # earlier than the following bar's open. This is fixed engine behavior,
   # not a configurable option, so it is documented rather than parameterized.
   execution_timing: "next_bar_open"
+
+temporal_validation:
+  # Milestone 3: fixed-parameter expanding-history temporal validation.
+  # 2010 is a burn-in/state-initialization period -- EMA and position state
+  # evolve causally through it, but it contributes zero evaluation
+  # statistics. Evaluation is exactly the 12 contiguous calendar-year
+  # windows below. See strategy_lab.validation.temporal_validation.
+  burn_in_year: 2010
+  evaluation_years:
+    [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022]
+  # ANNUAL rate (e.g. 0.02 for 2%/year), not daily -- converted to a daily
+  # rate internally (risk_free_rate / 252) by
+  # strategy_lab.validation.robustness_metrics.sharpe_like before use.
+  risk_free_rate: 0.0
+
+robustness:
+  # Small, preregistered parameter neighborhood for descriptive sensitivity
+  # analysis -- not an optimization grid. No parameter is ever selected,
+  # ranked, or fit from results. See strategy_lab.validation.robustness.
+  ema_neighborhood:
+    fast: [8, 9, 10, 11, 12]
+    slow: [25, 30, 35]
+    max_combinations: 25
+
+  # Preregistered cost-stress tiers. "baseline" must exactly reproduce the
+  # cost assumptions in scripts/run_parity_report.py. The other two are
+  # deliberately-worse assumptions, not estimates of actual SPY execution
+  # cost. Never crossed with ema_neighborhood -- parameter sensitivity
+  # always runs at baseline cost only; cost stress always runs EMA(10,30)
+  # only.
+  cost_stress:
+    baseline:
+      commission_rate: 0.001
+      slippage_rate: 0.0005
+    moderately_worse:
+      commission_rate: 0.0025
+      slippage_rate: 0.0015
+    materially_worse:
+      commission_rate: 0.005
+      slippage_rate: 0.004
+
+  # Predefined reference-engine/VectorBT parity spot checks. Fixed before
+  # any result is observed -- never chosen based on which cells looked
+  # interesting. Exactly three: the grid's two corners plus baseline.
+  parity_spot_checks:
+    - [8, 25]
+    - [10, 30]
+    - [12, 35]

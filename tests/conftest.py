@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -36,6 +37,32 @@ def valid_ohlcv() -> pd.DataFrame:
             bar(3, 100.0, 101.0, 99.0, 100.2),
             bar(4, 100.2, 101.2, 99.2, 100.1),
         ]
+    )
+
+
+def random_walk_ohlcv(start: str, end: str, seed: int = 42) -> pd.DataFrame:
+    """A deterministic synthetic random-walk OHLCV series over
+    ``[start, end]`` (business days), for Milestone 3 temporal-validation/
+    robustness/benchmark tests that need multi-year history. Same shape
+    convention as `strategy_lab.data.ohlcv`'s canonical schema."""
+    dates = pd.date_range(start, end, freq="B")
+    n = len(dates)
+    rng = np.random.default_rng(seed)
+    close = 100 * np.cumprod(1 + rng.normal(0, 0.01, n))
+    open_ = np.roll(close, 1)
+    open_[0] = close[0]
+    open_ = open_ * (1 + rng.normal(0, 0.001, n))
+    high = np.maximum(open_, close) * 1.002
+    low = np.minimum(open_, close) * 0.998
+    return pd.DataFrame(
+        {
+            "timestamp": dates,
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": np.full(n, 1_000_000),
+        }
     )
 
 
