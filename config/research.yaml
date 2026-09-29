@@ -112,3 +112,51 @@ robustness:
     - [8, 25]
     - [10, 30]
     - [12, 35]
+
+pine_parity:
+  # Milestone 4a: facts frozen BEFORE the first real manual TradingView
+  # export exists. This is schema-discovery scaffolding, not a completed
+  # parity protocol -- it does not include an observed CSV header schema
+  # or an EMA comparison tolerance, both of which can only be derived
+  # honestly from a real export (see pine/ema_crossover_parity.pine and
+  # scripts/inspect_pine_export.py). See README.md's Milestone 4a section.
+  symbol: "AMEX:SPY"
+  timeframe: "1D"
+  ui_language: "English"
+
+  fast_period: 10
+  slow_period: 30
+
+  # Actual verified session dates from the immutable M3 processed SPY
+  # snapshot, not calendar-derived cutoffs.
+  first_research_session: "2010-01-04"
+  first_test_session: "2023-01-03"
+
+  # Calendar-date cutoffs for Pine's bar-opening `time`. They do not assert
+  # that a daily bar itself opens at midnight. The M4a state is limited to
+  # this inclusive research range; no 2023 TEST OHLC may update it.
+  research_start: "2010-01-01"
+  research_end: "2022-12-30"
+  last_order_submission_date: "2022-12-29"
+  final_possible_fill_date: "2022-12-30"
+
+  # Pine implements the inclusive end date using this next-calendar-date
+  # cutoff, because its `time` is a bar-opening timestamp.
+  research_end_exclusive: "2022-12-31"
+  submission_end_exclusive: "2022-12-30"
+
+  # Requested export precision -- what the script asks for, not a
+  # guarantee of what a real TradingView CSV export actually contains.
+  # The real observed precision must be captured from the first real
+  # export before any EMA comparison tolerance is frozen (Milestone 4b).
+  requested_plot_precision: 8
+
+  required_settings:
+    dividend_adjustment: false
+    deep_backtesting: false
+    bar_magnifier: false
+    calc_on_every_tick: false
+    calc_on_order_fills: false
+    calc_on_every_history_tick: false
+    process_orders_on_close: false
+    order_execution_delay: "one_tick"

@@ -1,0 +1,163 @@
+// Milestone 4a: independent Pine v6 replica of the Python EMA(10,30)
+// crossover reference strategy, for parity comparison only.
+//
+// This is NOT a strategy-improvement, optimization, or live-trading script.
+// It deliberately reimplements the EMA recursion and crossover signal from
+// scratch (no `ta.ema()`, no `ta.crossover()`/`ta.crossunder()`) so that
+// agreement with the Python reference is evidence of independent logic
+// converging on the same causal state -- not evidence that both sides
+// share one library implementation.
+//
+// Research boundaries (derived from the real, immutable Milestone 3
+// processed SPY snapshot -- see config/research.yaml `pine_parity` and
+// experiments/registry.csv):
+//   - research start : 2010-01-01 (first eligible calendar date)
+//   - last eligible research session (execution boundary) : 2022-12-30
+//   - last eligible order-submission session : 2022-12-29
+//   - 2023 TEST OHLC never updates this script's research state
+//
+// `time` here is each bar's OPENING timestamp (not a claim that a daily
+// bar "starts at midnight" -- the `timestamp(...)` literals below are
+// calendar-date cutoffs compared against that opening timestamp, which is
+// sufficient to draw an exact session-date boundary for 1D bars).
+//
+// Execution model: `process_orders_on_close=false` with tick/order-fill/
+// history-tick recalculation and the Bar Magnifier all disabled means an
+// order submitted at a bar's close fills at the following bar's open --
+// matching the Python reference engine's `target_position[i] = signal[i-1]`
+// convention exactly. This must not be overridden by the operator via
+// "Recalculate on every tick", "Recalculate after order is filled",
+// intrabar/history-tick recalculation, Bar Magnifier, or Deep Backtesting.
+
+//@version=6
+strategy(
+     title="EMA Crossover Parity (M4)",
+     overlay=true,
+     process_orders_on_close=false,
+     calc_on_every_tick=false,
+     calc_on_order_fills=false,
+     calc_on_every_history_tick=false,
+     use_bar_magnifier=false,
+     pyramiding=0,
+     default_qty_type=strategy.fixed,
+     default_qty_value=1,
+     initial_capital=1000000,
+     currency=currency.USD,
+     commission_type=strategy.commission.percent,
+     commission_value=0,
+     slippage=0,
+     precision=8)
+
+// ---------------------------------------------------------------------
+// Fixed parameters -- no optimization inputs. Baseline remains EMA(10,30)
+// exactly, matching config/research.yaml's `pine_parity` block.
+// ---------------------------------------------------------------------
+fastPeriod = 10
+slowPeriod = 30
+alphaFast = 2.0 / (fastPeriod + 1)
+alphaSlow = 2.0 / (slowPeriod + 1)
+
+// ---------------------------------------------------------------------
+// Research-range and order-submission boundaries.
+// ---------------------------------------------------------------------
+researchStart = timestamp("America/New_York", 2010, 1, 1, 0, 0)
+researchEndExclusive = timestamp("America/New_York", 2022, 12, 31, 0, 0)
+submissionEndExclusive = timestamp("America/New_York", 2022, 12, 30, 0, 0)
+
+isResearchBar = time >= researchStart and time < researchEndExclusive
+canSubmitOrder = isResearchBar and time < submissionEndExclusive
+
+// ---------------------------------------------------------------------
+// Explicit recursive EMA state, matching pandas
+// `ewm(span=period, adjust=False, min_periods=period).mean()`:
+//   - the recursion seeds from the first eligible close (isResearchBar
+//     true for the first time);
+//   - the underlying recursion runs from that seed onward;
+//   - an output is only DEFINED (usable in the signal) once at least
+//     `period` research bars have been seen -- `min_periods` masks early
+//     outputs, it does not delay or reset the recursion itself;
+//   - the desired position stays flat (0) until both EMAs are defined;
+//   - the crossover test is strict `fast > slow`; equality is flat, not
+//     a signal.
+// ---------------------------------------------------------------------
+var float fastEma = na
+var float slowEma = na
+var int barsSinceSeed = 0
+var int prevDesired = 0
+
+if isResearchBar
+    barsSinceSeed += 1
+    fastEma := na(fastEma[1]) ? close : alphaFast * close + (1.0 - alphaFast) * fastEma[1]
+    slowEma := na(slowEma[1]) ? close : alphaSlow * close + (1.0 - alphaSlow) * slowEma[1]
+
+bothDefined = isResearchBar and barsSinceSeed >= slowPeriod
+
+desiredPosition = isResearchBar ? (bothDefined and fastEma > slowEma ? 1 : 0) : na
+
+entryTransition = isResearchBar and prevDesired == 0 and desiredPosition == 1
+exitTransition = isResearchBar and prevDesired == 1 and desiredPosition == 0
+
+if isResearchBar
+    prevDesired := desiredPosition
+
+// ---------------------------------------------------------------------
+// Order submission. No forced liquidation at research end: if a long
+// position remains open when the research range ends, it is left open
+// and is not force-closed by this script. No order generated on or after
+// `submissionEndExclusive` can ever fill on a 2023 TEST bar, because it
+// is never submitted in the first place.
+// ---------------------------------------------------------------------
+if canSubmitOrder and entryTransition
+    strategy.entry("Long", strategy.long, qty=1)
+
+if canSubmitOrder and exitTransition
+    strategy.close("Long")
+
+// ---------------------------------------------------------------------
+// Controlled, stably-titled export plots. TradingView's chart-data
+// exporter uses plot titles as CSV column headers, so these `M4_*` titles
+// are the columns Milestone 4b's parser must key off of -- not
+// TradingView's own built-in OHLC export columns, which may be exported
+// under different, less-controlled names/precision.
+//
+// Every `M4_*` series is `na` outside `isResearchBar`, so nothing exported
+// past the research range can be mistaken for live research state.
+//
+// The fast/slow EMA plots double as the visual on-chart overlay (no
+// duplicate calculation for chart display vs. CSV export); transition
+// markers are purely visual annotations and never feed back into any
+// calculation above.
+// ---------------------------------------------------------------------
+plot(isResearchBar ? open : na, title="M4_Open", display=display.data_window)
+plot(isResearchBar ? high : na, title="M4_High", display=display.data_window)
+plot(isResearchBar ? low : na, title="M4_Low", display=display.data_window)
+plot(isResearchBar ? close : na, title="M4_Close", display=display.data_window)
+plot(isResearchBar ? volume : na, title="M4_Volume", display=display.data_window)
+
+plot(isResearchBar ? fastEma : na, title="M4_FastEMA", color=color.blue,
+     display=display.all)
+plot(isResearchBar ? slowEma : na, title="M4_SlowEMA", color=color.orange,
+     display=display.all)
+
+plot(isResearchBar ? desiredPosition : na, title="M4_DesiredPosition",
+     display=display.data_window)
+plot(isResearchBar ? (entryTransition ? 1 : 0) : na, title="M4_EntryTransition",
+     display=display.data_window)
+plot(isResearchBar ? (exitTransition ? 1 : 0) : na, title="M4_ExitTransition",
+     display=display.data_window)
+
+// Independent, non-invasive execution diagnostic: what the Pine broker
+// emulator itself considers the current position state to be. Read-only
+// -- it does not feed back into any order-submission decision above, and
+// exists so Milestone 4b can cross-check `strategy.position_size` against
+// the `desiredPosition`/transition series derived purely from the EMA
+// recursion, including whether a position remains open at research end.
+positionState = isResearchBar ? (strategy.position_size > 0 ? 1 : 0) : na
+plot(positionState, title="M4_PositionState", display=display.data_window)
+
+plotshape(isResearchBar and entryTransition, title="M4 Entry Marker",
+     style=shape.triangleup, location=location.belowbar, color=color.green,
+     size=size.tiny)
+plotshape(isResearchBar and exitTransition, title="M4 Exit Marker",
+     style=shape.triangledown, location=location.abovebar, color=color.red,
+     size=size.tiny)

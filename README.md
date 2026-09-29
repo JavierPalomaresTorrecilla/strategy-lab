@@ -242,6 +242,80 @@ Unlike `scripts/fetch_dataset.py`, this script performs no network access
 at all — `scripts/fetch_dataset.py` remains the only network-dependent
 script in this project.
 
+**Milestone 4a: Pine Script parity — schema discovery (in progress).**
+Milestone 4 is an independent, from-scratch Pine Script v6 reimplementation
+of the EMA(10,30) crossover strategy (`pine/ema_crossover_parity.pine`),
+built to check whether an independently-written replica reproduces the
+Python reference's causal EMA state, signal transitions, and next-bar-open
+execution timing — never to improve, tune, or optimize the strategy, and
+never to evaluate TEST performance. **Milestone 4a is schema discovery
+only**: it does not yet implement a CSV parser, a Pine/Python comparison,
+a cross-provider data comparison, or any registry/provenance extension —
+those are Milestone 4b, and depend on facts (the real TradingView CSV
+header schema, the actually observed export decimal precision) that can
+only come from a real manual export, not from assumption.
+
+The Pine script reimplements the EMA recursion and crossover test from
+scratch — it does not call `ta.ema()`, `ta.crossover()`, or
+`ta.crossunder()` — so agreement with the Python reference is evidence of
+independently-written logic converging on the same state, not evidence
+that both sides share one library implementation. Its research range is
+gated to 2010-01-01 through 2022-12-30 inclusive and then frozen. The
+actual verified first eligible research session in the immutable M3
+processed SPY snapshot is 2010-01-04, and its first TEST session is
+2023-01-03; these are real session dates, not calendar-derived cutoffs. No
+2023 TEST OHLC can update EMA state or create a transition, and exported M4
+series are `na` outside that range. The order-submission boundary is
+2022-12-29, one session earlier than the final possible 2022-12-30 fill,
+matching the Python reference engine's `target_position[i] = signal[i-1]`
+convention. A transition on 2022-12-30 is not submitted, so it cannot fill
+outside the research range.
+
+Note on Pine's `time`: it is each bar's **opening** timestamp, not a claim
+that a daily bar begins at midnight. The script's `timestamp(...)`
+boundaries are simply calendar-date cutoffs compared against that opening
+timestamp — sufficient to draw an exact session-date line for 1D bars,
+without asserting anything about intraday bar-open conventions.
+
+Operator setup to verify manually on the chart:
+
+- Symbol `AMEX:SPY`, timeframe `1D`, standard (non-Heikin-Ashi/Renko)
+  candles, sufficient loaded history to reach back to 2010-01-04.
+- Dividend adjustment **OFF**; TradingView UI language **English** (reduces
+  locale-dependent CSV header/number formatting).
+- Script execution "On realtime bar tick" **OFF**; "On order fill" **OFF**;
+  "On history bar tick" **OFF**; Bar Magnifier **OFF**; order execution
+  delay set to one-tick/next-bar-open behavior (not "On bar close"); Deep
+  Backtesting **OFF**, with no custom Deep-Backtesting/testing range
+  configured — Deep
+  Backtesting can execute against data outside what the chart actually
+  exports, which would silently break the "same exported source" premise
+  the whole parity check depends on.
+
+After applying the script with that setup, the operator manually exports
+two real CSVs (never fetched or scraped) to:
+
+```
+$STRATEGY_LAB_DATA_ROOT/downloads/pine/m4/<UTC-timestamp>/chart_data.csv
+$STRATEGY_LAB_DATA_ROOT/downloads/pine/m4/<UTC-timestamp>/list_of_trades.csv
+```
+
+— outside Git, alongside the existing `downloads/` convention on the
+external data root — then runs the schema-discovery helper against them:
+
+```bash
+python scripts/inspect_pine_export.py \
+  "$STRATEGY_LAB_DATA_ROOT/downloads/pine/m4/<timestamp>/chart_data.csv" \
+  "$STRATEGY_LAB_DATA_ROOT/downloads/pine/m4/<timestamp>/list_of_trades.csv"
+```
+
+This prints each file's identity (path, SHA-256, byte size) and its
+**literal, unmodified header row** — both as raw text and as parsed by
+Python's stdlib `csv` reader — and nothing else: no P&L inspection, no
+column mapping, no schema guessing. Milestone 4b begins only once those
+real, observed headers (and the real observed export decimal precision,
+needed to freeze an honest EMA-comparison tolerance) have been reviewed.
+
 ## Setting up the Python environment
 
 Requires Python 3.11+ (developed against 3.14 locally; check with `python3 --version`).
