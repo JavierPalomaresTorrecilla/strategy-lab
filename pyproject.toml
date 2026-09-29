@@ -12,12 +12,17 @@ dependencies = [
     "pydantic>=2.7",
     "matplotlib>=3.9",
     "PyYAML>=6.0",
+    "yfinance>=1.7.0",
+    "pyarrow>=25.0.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
+]
+parity = [
+    "vectorbt>=1.1.0",
 ]
 
 [build-system]

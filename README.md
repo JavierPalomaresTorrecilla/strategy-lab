@@ -95,12 +95,12 @@ All data used in tests is deterministic synthetic OHLCV data. No external
 market data is downloaded.
 
 **Live trading, paper trading, autonomous trading agents, and order execution
-are intentionally not implemented.** No connection exists to Coinbase,
-TradingView, or any broker/exchange. Such integrations may only be added in
-future work, deliberately and incrementally, once the research and validation
-layers are mature enough to justify them. Nothing in this milestone should be
-read as a claim that the EMA crossover strategy is profitable or
-production-ready — it is test scaffolding.
+are intentionally not implemented.** No exchange or broker execution
+connectivity exists. Such integrations may only be added in future work,
+deliberately and incrementally, once the research and validation layers are
+mature enough to justify them. Nothing in this milestone should be read as a
+claim that the EMA crossover strategy is profitable or production-ready — it
+is test scaffolding.
 
 ### Execution timing semantics
 
@@ -115,6 +115,74 @@ information it could not have had in practice. See
 `tests/test_backtest_engine.py` for a fixture-based proof that a crossover
 known only at close T does not execute at close T.
 
+**Milestone 2: real historical data, reproducibility, and cross-engine
+parity.** This milestone is about trustworthy data plumbing and validating
+the reference engine against a second, independent implementation — it is
+**not** about finding profitable parameters. It adds:
+
+- an external, immutable snapshot store for market data
+  (`strategy_lab.data.env`, `strategy_lab.data.snapshot`,
+  `strategy_lab.data.processed`): large datasets live outside this
+  repository, under the directory named by `STRATEGY_LAB_DATA_ROOT`, never
+  as a silent fallback inside the repo or on the internal disk;
+- a narrow, provider-agnostic market-data interface
+  (`strategy_lab.data.providers`) with one concrete, DEVELOPMENT-only
+  provider (`strategy_lab.data.providers.yfinance_provider`) — not a plugin
+  framework, and not an authoritative production data source;
+- raw-vs-canonical separation (`strategy_lab.data.canonical`): the raw
+  provider snapshot is preserved unmodified; conversion to the canonical
+  OHLCV schema is a separate, pure step that fails loudly rather than
+  repairing malformed data;
+- YAML-driven chronological TRAIN/VALIDATION/TEST partitions
+  (`strategy_lab.data.splits`, boundaries defined once in
+  `config/research.yaml`). **TEST is methodologically sealed** in this
+  milestone: it is loaded and validated, but no real-data strategy result is
+  computed on it — see `strategy_lab.data.splits.RESEARCH_ALLOWED_SPLITS`
+  and `scripts/run_parity_report.py`;
+- a second, independent quantitative engine — VectorBT
+  (`strategy_lab.validation.vectorbt_adapter`) — explicitly configured to
+  match the reference engine's next-open execution timing, and a
+  deterministic cross-engine parity report
+  (`strategy_lab.validation.parity`) that surfaces and explains any
+  divergence rather than forcing agreement by adjusting either
+  implementation.
+
+The reference engine (`strategy_lab.backtest.engine`) is unmodified by
+Milestone 2.
+
+### Optional `parity` dependency group
+
+VectorBT (and its `numba`/`llvmlite` dependency chain) is kept in an
+optional `parity` extra so the core package install stays light:
+
+```bash
+pip install -e ".[dev,parity]"
+```
+
+`tests/test_parity.py` imports VectorBT directly (no `pytest.importorskip`)
+— if the `parity` extra isn't installed, that one test file fails to
+collect visibly. This is intentional: Milestone 2 acceptance on a properly
+set up machine requires the `parity` extra installed and
+`tests/test_parity.py` passing, not silently skipped. The rest of the suite
+requires neither VectorBT nor network access.
+
+### Fetching and validating the real dataset (human-run only)
+
+Two scripts, never run automatically by tests or library code:
+
+```bash
+# requires STRATEGY_LAB_DATA_ROOT set to a writable external directory,
+# and network access to Yahoo Finance
+python scripts/fetch_dataset.py
+
+# requires a processed snapshot from the script above, and the `parity` extra
+python scripts/run_parity_report.py
+```
+
+`run_parity_report.py` only ever reads the `train` and `validation`
+partitions — it never constructs a signal, backtest, or parity comparison
+from `test`-partition rows.
+
 ## Setting up the Python environment
 
 Requires Python 3.11+ (developed against 3.14 locally; check with `python3 --version`).
@@ -122,14 +190,33 @@ Requires Python 3.11+ (developed against 3.14 locally; check with `python3 --ver
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
 ```
+
+Then install one of:
+
+- Core development dependencies only (no network, no VectorBT):
+
+  ```bash
+  pip install -e ".[dev]"
+  ```
+
+- Full Milestone 2 acceptance, including VectorBT parity:
+
+  ```bash
+  pip install -e ".[dev,parity]"
+  ```
 
 ## Running tests
 
 ```bash
 pytest
 ```
+
+Running the entire suite requires the `parity` extra: `tests/test_parity.py`
+intentionally imports VectorBT directly, with no `pytest.importorskip`, so
+that a missing `parity` extra fails collection visibly instead of silently
+skipping. `pip install -e ".[dev]"` alone will not produce a fully green
+`pytest` run.
 
 ## Minimal example
 

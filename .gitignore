@@ -54,11 +54,6 @@ Thumbs.db
 *.sqlite3
 *.db
 
-# --- TradingView / session artefacts (future integrations) ---
-*.tvsession
-tradingview_session*
-.tv_cache/
-
 # --- Data: keep directory structure, ignore actual datasets ---
 data/raw/*
 !data/raw/.gitkeep
