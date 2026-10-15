@@ -53,6 +53,11 @@ class RawSnapshotRef:
     metadata_path: Path
     sha256: str
 
+    @property
+    def artifact_path(self) -> Path:
+        """Path of the raw artifact's payload file (the Parquet file)."""
+        return self.parquet_path
+
 
 def compute_sha256(path: Path) -> str:
     """SHA-256 of a file's exact bytes on disk."""
