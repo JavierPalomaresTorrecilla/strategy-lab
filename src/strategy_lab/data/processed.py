@@ -37,6 +37,7 @@ import json
 import os
 import shutil
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,9 +45,21 @@ from pathlib import Path
 import pandas as pd
 import pyarrow
 
-from strategy_lab.data.snapshot import RawSnapshotRef, compute_sha256
+from strategy_lab.data.raw_artifact import RawArtifactRef
+from strategy_lab.data.snapshot import compute_sha256
 
 SCHEMA_VERSION = 1
+
+_ALLOWED_PROVIDERS: frozenset[str] = frozenset({"coinbase"})
+_PROVIDER_TIMESTAMP_SEMANTICS: dict[str, str] = {"coinbase": "utc_day_bucket_start"}
+_LEGACY_TIMESTAMP_SEMANTICS = "exchange_session_date_naive"
+_COINBASE_REQUIRED_KWARGS = (
+    "volume_unit_status",
+    "volume_unit_inference",
+    "volume_unit_evidence",
+    "missing_days_utc",
+    "missing_day_count",
+)
 
 
 @dataclass(frozen=True)
@@ -56,8 +69,16 @@ class ProcessedSnapshotRef:
     sha256: str
 
 
-def processed_snapshot_dir(data_root: Path, symbol: str, interval: str) -> Path:
-    return data_root / "processed" / symbol / interval
+def processed_snapshot_dir(
+    data_root: Path, symbol: str, interval: str, provider: str | None = None
+) -> Path:
+    if provider is not None and provider not in _ALLOWED_PROVIDERS:
+        raise ValueError(
+            f"unsupported provider {provider!r}; allowed: {sorted(_ALLOWED_PROVIDERS)}"
+        )
+    if provider is None:
+        return data_root / "processed" / symbol / interval
+    return data_root / "processed" / provider / symbol / interval
 
 
 def _processed_stem(created_at_utc: datetime, processed_sha256: str) -> str:
@@ -83,10 +104,18 @@ def _publish_file_exclusive(tmp_path: Path, final_path: Path) -> None:
 
 def save_processed_snapshot(
     canonical_df: pd.DataFrame,
-    source_raw_ref: RawSnapshotRef,
+    source_raw_ref: RawArtifactRef,
     data_root: Path,
     symbol: str,
     interval: str,
+    *,
+    provider: str | None = None,
+    volume_unit: str | None = None,
+    volume_unit_status: str | None = None,
+    volume_unit_inference: str | None = None,
+    volume_unit_evidence: str | None = None,
+    missing_days_utc: Sequence[str] | None = None,
+    missing_day_count: int | None = None,
 ) -> ProcessedSnapshotRef:
     """Write ``canonical_df`` as a new, immutable processed snapshot.
 
@@ -101,8 +130,23 @@ def save_processed_snapshot(
     atomically no-clobber (see module docstring): a destination that
     already exists -- from an earlier run or a genuine concurrent writer
     -- is never overwritten; this raises ``FileExistsError`` instead.
+    With ``provider=None`` (the default), behavior and output remain
+    byte-identical to the legacy path. With ``provider="coinbase"``, output
+    is namespaced under ``processed/coinbase/<symbol>/<interval>/`` and
+    metadata gains provider, timezone, volume-unit, and gap fields, all
+    required together (``ValueError`` if any is missing). Coinbase-only
+    arguments with the default provider also raise ``ValueError``.
     """
-    directory = processed_snapshot_dir(data_root, symbol, interval)
+    _validate_provider_arguments(
+        provider=provider,
+        volume_unit=volume_unit,
+        volume_unit_status=volume_unit_status,
+        volume_unit_inference=volume_unit_inference,
+        volume_unit_evidence=volume_unit_evidence,
+        missing_days_utc=missing_days_utc,
+        missing_day_count=missing_day_count,
+    )
+    directory = processed_snapshot_dir(data_root, symbol, interval, provider=provider)
     directory.mkdir(parents=True, exist_ok=True)
 
     created_at_utc = datetime.now(UTC)
@@ -141,11 +185,15 @@ def save_processed_snapshot(
         "schema_version": SCHEMA_VERSION,
         "kind": "processed",
         "created_at_utc": created_at_utc.isoformat(),
-        "source_raw_file": str(source_raw_ref.parquet_path.relative_to(data_root)),
+        "source_raw_file": str(source_raw_ref.artifact_path.relative_to(data_root)),
         "source_raw_sha256": source_raw_ref.sha256,
         "pandas_version": pd.__version__,
         "pyarrow_version": pyarrow.__version__,
-        "timestamp_semantics": "exchange_session_date_naive",
+        "timestamp_semantics": (
+            _LEGACY_TIMESTAMP_SEMANTICS
+            if provider is None
+            else _PROVIDER_TIMESTAMP_SEMANTICS[provider]
+        ),
         "symbol": symbol,
         "interval": interval,
         "columns": [str(c) for c in canonical_df.columns],
@@ -155,6 +203,15 @@ def save_processed_snapshot(
         "sha256": sha256,
         "file": str(parquet_path.relative_to(data_root)),
     }
+    if provider is not None:
+        metadata["provider"] = provider
+        metadata["timezone"] = "UTC"
+        metadata["volume_unit"] = volume_unit
+        metadata["volume_unit_status"] = volume_unit_status
+        metadata["volume_unit_inference"] = volume_unit_inference
+        metadata["volume_unit_evidence"] = volume_unit_evidence
+        metadata["missing_days_utc"] = list(missing_days_utc)
+        metadata["missing_day_count"] = missing_day_count
     # Exclusive metadata publication: never overwrite an existing sidecar.
     # If this raises, the Parquet artifact published just above is left in
     # place untouched, as an orphan with no metadata sidecar (e.g. after a
@@ -189,3 +246,88 @@ def _timestamp_or_none(value) -> str | None:
     if value is None or pd.isna(value):
         return None
     return pd.Timestamp(value).isoformat()
+
+
+def _validate_provider_arguments(
+    *,
+    provider: str | None,
+    volume_unit: str | None,
+    volume_unit_status: str | None,
+    volume_unit_inference: str | None,
+    volume_unit_evidence: str | None,
+    missing_days_utc: Sequence[str] | None,
+    missing_day_count: int | None,
+) -> None:
+    """Validate provider-specific processed snapshot metadata arguments."""
+    provider_arguments = {
+        "volume_unit": volume_unit,
+        "volume_unit_status": volume_unit_status,
+        "volume_unit_inference": volume_unit_inference,
+        "volume_unit_evidence": volume_unit_evidence,
+        "missing_days_utc": missing_days_utc,
+        "missing_day_count": missing_day_count,
+    }
+    if provider is None:
+        for name, value in provider_arguments.items():
+            if value is not None:
+                raise ValueError(f"{name} is only valid with provider='coinbase'")
+        return
+
+    if provider not in _ALLOWED_PROVIDERS:
+        raise ValueError(
+            f"unsupported provider {provider!r}; allowed: {sorted(_ALLOWED_PROVIDERS)}"
+        )
+
+    for name in _COINBASE_REQUIRED_KWARGS:
+        if provider_arguments[name] is None:
+            raise ValueError(f"{name} is required with provider='coinbase'")
+
+    if type(missing_day_count) is not int or missing_day_count < 0:
+        raise ValueError(
+            "missing_day_count must be a non-negative int; "
+            f"got {missing_day_count!r}"
+        )
+
+    if isinstance(missing_days_utc, str) or not isinstance(missing_days_utc, Sequence):
+        raise ValueError(
+            "missing_days_utc must be a sequence of YYYY-MM-DD strings; "
+            f"got {missing_days_utc!r}"
+        )
+    for missing_day in missing_days_utc:
+        if not isinstance(missing_day, str):
+            raise ValueError(
+                "missing_days_utc contains an invalid date format; "
+                f"got {missing_day!r}"
+            )
+        try:
+            parsed_missing_day = datetime.strptime(missing_day, "%Y-%m-%d")
+        except ValueError as exc:
+            raise ValueError(
+                "missing_days_utc contains an invalid date format; "
+                f"got {missing_day!r}"
+            ) from exc
+        if parsed_missing_day.strftime("%Y-%m-%d") != missing_day:
+            raise ValueError(
+                "missing_days_utc contains an invalid date format; "
+                f"got {missing_day!r}"
+            )
+    if len(missing_days_utc) != len(set(missing_days_utc)):
+        raise ValueError("missing_days_utc contains a duplicate date found")
+    if list(missing_days_utc) != sorted(missing_days_utc):
+        raise ValueError("missing_days_utc is not in strictly ascending order")
+    if len(missing_days_utc) != missing_day_count:
+        raise ValueError(
+            "missing_days_utc length does not match missing_day_count: "
+            f"{len(missing_days_utc)} != {missing_day_count}"
+        )
+
+    for name in (
+        "volume_unit_status",
+        "volume_unit_inference",
+        "volume_unit_evidence",
+    ):
+        value = provider_arguments[name]
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{name} must be a non-empty string; got {value!r}")
+    if volume_unit is not None and (not isinstance(volume_unit, str) or not volume_unit):
+        raise ValueError(f"volume_unit must be None or a non-empty string; got {volume_unit!r}")

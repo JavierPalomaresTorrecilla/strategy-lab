@@ -1,0 +1,25 @@
+{
+  "columns": [
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "created_at_utc": "2026-04-05T06:07:08.901234+00:00",
+  "file": "processed/SPY/1d/20260405T060708901234Z-ab234ff2f6600daf.canonical.parquet",
+  "first_timestamp": "2024-01-02T00:00:00",
+  "interval": "1d",
+  "kind": "processed",
+  "last_timestamp": "2024-01-03T00:00:00",
+  "pandas_version": "3.0.6",
+  "pyarrow_version": "25.0.1",
+  "row_count": 2,
+  "schema_version": 1,
+  "sha256": "ab234ff2f6600dafd436d18fbbd3076ee3b2bea21814c7a90dde0b4df9993957",
+  "source_raw_file": "raw/yfinance/SPY/1d/20240110T000000000000Z-raw.parquet",
+  "source_raw_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "symbol": "SPY",
+  "timestamp_semantics": "exchange_session_date_naive"
+}
