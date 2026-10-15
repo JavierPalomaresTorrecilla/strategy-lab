@@ -1,13 +1,16 @@
 annotated-types==0.8.0
 anywidget==0.11.0
 asttokens==3.0.2
+backoff==2.2.1
 beautifulsoup4==4.15.0
 certifi==2026.7.22
 cffi==2.1.1
 charset-normalizer==3.5.1
 cloudpickle==3.1.2
+coinbase-advanced-py==1.7.0
 comm==0.2.3
 contourpy==1.4.0
+cryptography==50.0.2
 curl_cffi==0.16.3
 cycler==0.12.1
 dateparser==1.4.3
@@ -53,6 +56,7 @@ pycparser==3.0
 pydantic==2.13.5
 pydantic_core==2.46.5
 Pygments==2.21.0
+PyJWT==2.15.1
 pyparsing==3.3.3
 pytest==9.1.1
 python-dateutil==2.9.0.post0

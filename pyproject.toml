@@ -17,6 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+crypto = ["coinbase-advanced-py==1.7.0"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
