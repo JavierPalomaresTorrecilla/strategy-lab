@@ -1,0 +1,96 @@
+{
+  "manifest": "m5a_coinbase_discovery",
+  "description": "Semantic manifest of Coinbase Advanced public REST API behavior, distilled from a single real discovery run. No raw payloads; see provenance for the evidence directory.",
+  "provenance": {
+    "evidence_dir": "/mnt/data/strategy-lab/downloads/coinbase/discovery/20261015T141326Z/",
+    "summary_json_sha256": "e75b11525c9d164f942312605690acd106b54b97f167f8a0a3a1648397341563",
+    "run_start_utc": "2026-10-15T14:13:26.795641+00:00",
+    "run_end_utc": "2026-10-15T14:13:41.620931+00:00",
+    "total_request_count": 13,
+    "products_probed": ["ADA-EUR", "DOT-EUR"],
+    "python_version": "3.14.4",
+    "coinbase_advanced_py_version": "1.7.0",
+    "script_path": "scripts/discover_coinbase_api.py",
+    "repo_commit": "eb17dd5a510233e89114173f49d0736be954e945"
+  },
+  "confirmed": {
+    "request_format": {
+      "granularity": "ONE_DAY accepted for all candle requests; both products.",
+      "start_end_encoding": "start/end sent as Unix-seconds strings (e.g. \"1791209606\") and accepted. Other encodings (ISO, integers) were not tested."
+    },
+    "candle_bucket_alignment": {
+      "rule": "Every returned candle.start is UTC midnight (start % 86400 == 0).",
+      "evidence": "All 720 returned candle starts across 05,06,09,10,12,13 have modulo 86400 == 0 (verified programmatically); candle.start labels the start of the day bucket."
+    },
+    "candle_ordering": {
+      "rule": "Candles are returned newest-first (descending by start).",
+      "evidence": "05_recent_candles_ADA-EUR.json and 06_recent_candles_DOT-EUR.json both descend from 2026-10-15 to 2026-10-06; same pattern in 09/10/12/13."
+    },
+    "partial_current_day_included": {
+      "rule": "The bucket containing the request's `end` is returned even when incomplete.",
+      "evidence": "Run executed ~14:13 UTC on 2026-10-15; newest candle in 05 and 06 has start=1792022400 (2026-10-15T00:00:00Z), i.e. today's partial day, confirmed by summary.json's newest_candle_start_is_on_run_start_utc_date=true for both."
+    },
+    "window_boundary_artifact": {
+      "rule": "Only buckets with start >= request start are returned; the UTC day containing a non-midnight request `start` is excluded, not a real gap.",
+      "evidence": "Every candle probe's missing_daily_buckets_utc in summary.json is a single entry equal to the UTC day containing that probe's request start: 2026-10-05 for 05/06 (start=1791209606, mid-day), 2024-11-14 for 09 (300-day window), 2024-09-25 for 10/12/13 (350-day windows). returned_candle_count == requested_calendar_day_count exactly in every successful probe, confirming no other gaps exist once this boundary day is accounted for."
+    },
+    "request_size_limit": {
+      "rule": "350 daily candles per request succeeds; 351 is rejected with HTTP 400 INVALID_ARGUMENT.",
+      "evidence": "09 (300 days) and 10 (350 days) both outcome=ok with returned_candle_count == requested days. 11 (351 days) outcome=error, status_code=400, exception_class=HTTPError, server message verbatim: \"start and end argument is invalid - number of candles requested should be less than 350\".",
+      "note": "The server's own wording (\"less than 350\") is imprecise relative to observed behavior: 350 itself succeeds, so the true accepted range is <= 350, not < 350. Record the message verbatim but do not trust its literal wording over the empirical result."
+    },
+    "pre_listing_window": {
+      "rule": "A candle window entirely before a product's tradable history returns an empty candle list with outcome=ok, no error.",
+      "evidence": "07_pre_listing_candles_ADA-EUR.json and 08_pre_listing_candles_DOT-EUR.json (2015-01-01..2015-01-10) both outcome=ok, returned_candle_count=0."
+    },
+    "candle_field_types": {
+      "rule": "All candle OHLCV fields (open, high, low, close, volume) are decimal strings, never JSON numbers.",
+      "evidence": "Verified in 05, 06, 09, 10, 12, 13 — every candle field is a quoted string (e.g. \"close\": \"0.199\", \"volume\": \"1651833.93\")."
+    },
+    "no_real_gaps_in_350_day_windows": {
+      "rule": "No missing days in the 300/350-day windows for either product beyond the single window-boundary artifact.",
+      "evidence": "09, 10, 12, 13 each have exactly one missing_daily_buckets_utc entry (the boundary day) and returned_candle_count == requested_calendar_day_count."
+    },
+    "server_time_fields": {
+      "rule": "get_unix_time returns epoch_seconds and epoch_millis as strings plus an iso field. Observed local-vs-server offset was sub-second (+0.046 s at start, -0.492 s at end); its cause is not determined.",
+      "evidence": "02_server_time_start.json: epoch_seconds=\"1792073607\", epoch_millis=\"1792073607208\", iso=\"2026-10-15T14:13:27Z\", elapsed_milliseconds=308. 14_server_time_end.json: epoch_seconds=\"1792073621\", iso=\"2026-10-15T14:13:41Z\", elapsed_milliseconds=128. Computed offsets: start +0.046s, end -0.492s."
+    },
+    "product_metadata": {
+      "both_products": {
+        "status": "online",
+        "product_type": "SPOT",
+        "product_venue": "CBE",
+        "new_at": "2023-01-01T00:00:00Z (identical for both products; NOT evidence of actual listing/history start date, see open_questions)"
+      },
+      "ADA-EUR": {
+        "base_increment": "0.01",
+        "quote_increment": "0.00001",
+        "base_min_size": "0.01",
+        "base_max_size": "32381300",
+        "quote_min_size": "1",
+        "quote_max_size": "10000000"
+      },
+      "DOT-EUR": {
+        "base_increment": "0.001",
+        "quote_increment": "0.0001",
+        "base_min_size": "0.001",
+        "base_max_size": "35000",
+        "quote_min_size": "1",
+        "quote_max_size": "10000000"
+      }
+    }
+  },
+  "inferred": {
+    "candle_volume_is_in_base_units": {
+      "claim": "Candle `volume` (and product `volume_24h`) are denominated in the base currency (ADA, DOT), not the quote currency (EUR).",
+      "basis": "volume_24h * price reproduces approximate_quote_24h_volume almost exactly for both products: ADA-EUR 2336220.54 * 0.199 = 464907.88746 (matches approximate_quote_24h_volume exactly); DOT-EUR 199462.201 * 0.9602 = 191523.6054 (matches exactly). Candle volumes (e.g. ADA-EUR ~1.1M-3.5M per day) are the same order of magnitude as volume_24h (2.34M), consistent with base-unit denomination.",
+      "confidence": "INFERRED, not directly confirmed by any field that explicitly states units; the arithmetic match across two independent products is strong corroborating evidence but the API never labels volume's currency explicitly."
+    }
+  },
+  "open_questions": [
+    "Earliest available daily candle per product (ADA-EUR, DOT-EUR) — not determined by this run; to be found during M5b ingestion by paging the candle endpoint backward in <=350-day windows until an empty response is returned.",
+    "Public (unauthenticated) endpoint rate limits — not observed in this run (13 requests at >=1.0s spacing); no HTTP 429 observed; response headers were not recorded. The actual limit and window are unknown.",
+    "Duplicate-timestamp behavior — not observed; unknown whether the API can ever return two candles with the same `start` for one request, or how overlapping-window requests reconcile.",
+    "Historical revision behavior — not observed; unknown whether previously-returned candle values (especially for the most recent, partial day) can change on a later request for the same window."
+  ]
+}
