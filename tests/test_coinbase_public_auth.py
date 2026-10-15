@@ -38,8 +38,10 @@ class _OfflineResponse:
         return self._payload
 
 
+@pytest.mark.parametrize("rate_limit_headers", [False, True])
 def test_allowed_methods_are_unauthenticated_and_offline(
     monkeypatch: pytest.MonkeyPatch,
+    rate_limit_headers: bool,
 ) -> None:
     requests: list[dict[str, Any]] = []
     jwt_calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
@@ -75,7 +77,7 @@ def test_allowed_methods_are_unauthenticated_and_offline(
     monkeypatch.setattr(socket, "create_connection", network_forbidden)
     monkeypatch.setattr(coinbase.jwt_generator, "build_rest_jwt", jwt_forbidden)
 
-    public_client = make_public_client()
+    public_client = make_public_client(rate_limit_headers=rate_limit_headers)
     public_client._client.session.request = fake_request
 
     calls = (
@@ -94,8 +96,9 @@ def test_allowed_methods_are_unauthenticated_and_offline(
     assert len(requests) == 4
 
 
-def test_public_client_exposes_only_the_allowlisted_methods() -> None:
-    public_client = make_public_client()
+@pytest.mark.parametrize("rate_limit_headers", [False, True])
+def test_public_client_exposes_only_the_allowlisted_methods(rate_limit_headers: bool) -> None:
+    public_client = make_public_client(rate_limit_headers=rate_limit_headers)
 
     for name in (
         "get_accounts",
@@ -126,8 +129,9 @@ def _subprocess_env() -> dict[str, str]:
     return env
 
 
-def test_factory_ignores_credentials_bound_before_sdk_import() -> None:
-    child_script = """
+@pytest.mark.parametrize("rate_limit_headers", [False, True])
+def test_factory_ignores_credentials_bound_before_sdk_import(rate_limit_headers: bool) -> None:
+    child_script = f"""
 import json
 import socket
 
@@ -138,12 +142,12 @@ socket.socket.connect = network_forbidden
 
 from strategy_lab.data.providers.coinbase_client import make_public_client
 
-client = make_public_client()._client
-print(json.dumps({
+client = make_public_client(rate_limit_headers={rate_limit_headers!r})._client
+print(json.dumps({{
     "is_authenticated": client.is_authenticated,
     "api_key": getattr(client, "api_key", None),
     "api_secret": getattr(client, "api_secret", None),
-}))
+}}))
 """
     completed = subprocess.run(
         [sys.executable, "-c", child_script],
@@ -161,13 +165,15 @@ print(json.dumps({
     }
 
 
-def test_sdk_default_construction_binds_import_time_credentials() -> None:
-    child_script = """
+@pytest.mark.parametrize("rate_limit_headers", [False, True])
+def test_sdk_default_construction_binds_import_time_credentials(rate_limit_headers: bool) -> None:
+    child_script = f"""
 import json
 
 from coinbase.rest import RESTClient
 
-print(json.dumps({"is_authenticated": RESTClient().is_authenticated}))
+client = RESTClient(rate_limit_headers={rate_limit_headers!r})
+print(json.dumps({{"is_authenticated": client.is_authenticated}}))
 """
     completed = subprocess.run(
         [sys.executable, "-c", child_script],
@@ -181,8 +187,10 @@ print(json.dumps({"is_authenticated": RESTClient().is_authenticated}))
     assert json.loads(completed.stdout) == {"is_authenticated": True}
 
 
+@pytest.mark.parametrize("rate_limit_headers", [False, True])
 def test_factory_rejects_an_unexpectedly_authenticated_sdk_client(
     monkeypatch: pytest.MonkeyPatch,
+    rate_limit_headers: bool,
 ) -> None:
     class FakeAuthenticatedRESTClient:
         def __init__(self, **kwargs: Any) -> None:
@@ -191,4 +199,10 @@ def test_factory_rejects_an_unexpectedly_authenticated_sdk_client(
     monkeypatch.setattr(coinbase_client, "_RESTClient", FakeAuthenticatedRESTClient)
 
     with pytest.raises(RuntimeError, match="unexpectedly authenticated"):
-        make_public_client()
+        make_public_client(rate_limit_headers=rate_limit_headers)
+
+
+@pytest.mark.parametrize("value", [1, "true"])
+def test_factory_rejects_non_boolean_rate_limit_headers(value: object) -> None:
+    with pytest.raises(TypeError, match="rate_limit_headers must be a bool"):
+        make_public_client(rate_limit_headers=value)  # type: ignore[arg-type]

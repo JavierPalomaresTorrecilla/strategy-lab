@@ -35,9 +35,14 @@ class CoinbasePublicClient:
         )
 
 
-def make_public_client(timeout: float = 10.0) -> CoinbasePublicClient:
+def make_public_client(
+    timeout: float = 10.0, *, rate_limit_headers: bool = False
+) -> CoinbasePublicClient:
     """Construct an explicitly unauthenticated Coinbase REST client."""
     global _RESTClient
+
+    if not isinstance(rate_limit_headers, bool):
+        raise TypeError("rate_limit_headers must be a bool")
 
     if _RESTClient is None:
         try:
@@ -49,7 +54,13 @@ def make_public_client(timeout: float = 10.0) -> CoinbasePublicClient:
             ) from exc
         _RESTClient = RESTClient
 
-    client = _RESTClient(api_key=None, api_secret=None, key_file=None, timeout=timeout)
+    client = _RESTClient(
+        api_key=None,
+        api_secret=None,
+        key_file=None,
+        timeout=timeout,
+        rate_limit_headers=rate_limit_headers,
+    )
     if client.is_authenticated is not False:
         raise RuntimeError("Coinbase public client construction unexpectedly authenticated.")
 
