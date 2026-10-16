@@ -150,7 +150,10 @@ def decode_pages(
 
     for window, raw_candles in pages:
         for raw in raw_candles:
-            candle = parse_candle(raw)
+            try:
+                candle = parse_candle(raw)
+            except MalformedCandleError as exc:
+                raise MalformedCandleError(f"{product}: {exc}") from exc
             bucket = candle.bucket_start
             if not window.first_bucket_start <= bucket <= window.last_bucket_start:
                 raise CandleOutsideWindowError(
