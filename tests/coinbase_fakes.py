@@ -24,10 +24,17 @@ def candle(start: datetime, **overrides: str) -> SimpleNamespace:
 class FakeClient:
     """Serve fixed per-product candles while recording SDK-style requests."""
 
-    def __init__(self, now_utc: datetime, candles_by_product: Mapping[str, list[SimpleNamespace]]):
+    def __init__(
+        self,
+        now_utc: datetime,
+        candles_by_product: Mapping[str, list[SimpleNamespace]],
+        *,
+        rate_limit_headers_by_call: Mapping[int, Mapping[str, str | None]] | None = None,
+    ):
         assert now_utc.tzinfo is UTC
         self.now_utc = now_utc
         self.candles_by_product = candles_by_product
+        self.rate_limit_headers_by_call = rate_limit_headers_by_call or {}
         self.calls: list[tuple[str, ...]] = []
 
     def get_unix_time(self) -> SimpleNamespace:
@@ -56,7 +63,8 @@ class FakeClient:
             for raw in self.candles_by_product.get(request["product_id"], [])
             if first <= int(raw.start) <= last
         ]
-        return SimpleNamespace(candles=candles)
+        headers = self.rate_limit_headers_by_call.get(len(self.calls), {})
+        return SimpleNamespace(candles=candles, **headers)
 
 
 def utc_day(year: int, month: int, day: int) -> datetime:
