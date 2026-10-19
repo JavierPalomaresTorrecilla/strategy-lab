@@ -1,0 +1,137 @@
+{
+  "manifest": "m5b_coinbase_ingestion",
+  "provenance": {
+    "git_head": "de15309f96aef50775a2eca87e39626ba1a463e6",
+    "script_path": "scripts/ingest_coinbase.py",
+    "run_summary_path": "diagnostics/coinbase_ingest/20261019T090224Z.summary.json",
+    "run_summary_sha256": "73ec124bbf3c3b52d167dba5765f491ba0b63dc8d02481289952f791d5249a09",
+    "run_start_utc": "2026-10-19T09:02:24.938841+00:00",
+    "run_end_utc": "2026-10-19T09:02:55.766902+00:00",
+    "python_version": "3.14.4",
+    "sdk_version": "1.7.0",
+    "artifact_paths_relative_to": "STRATEGY_LAB_DATA_ROOT",
+    "resolved_data_root_at_run": "/mnt/data/strategy-lab"
+  },
+  "configuration": {
+    "history_search_floor": {
+      "value": "2015-01-01T00:00:00+00:00",
+      "source": "src/strategy_lab/data/providers/coinbase_candles.py:HISTORY_SEARCH_FLOOR:12"
+    },
+    "window_days": {
+      "value": 300,
+      "source": "src/strategy_lab/data/providers/coinbase_candles.py:WINDOW_DAYS:15"
+    },
+    "request_cap": {
+      "value": 40,
+      "source": "src/strategy_lab/data/providers/coinbase_ingest.py:REQUEST_CAP:30"
+    },
+    "configured_throttle_seconds": {
+      "value": 1.0,
+      "source": "src/strategy_lab/data/providers/coinbase_ingest.py:MIN_REQUEST_INTERVAL_S:31"
+    },
+    "interval": {
+      "value": "1d",
+      "source": "src/strategy_lab/data/providers/coinbase_raw.py:INTERVAL:24"
+    },
+    "products": {
+      "value": ["ADA-EUR", "DOT-EUR"],
+      "source": "src/strategy_lab/data/providers/coinbase_raw.py:ALLOWED_PRODUCTS:23"
+    },
+    "tests": {
+      "passing_count": 462,
+      "command": ".venv/bin/python -m pytest -q"
+    }
+  },
+  "confirmed": {
+    "products": {
+      "ADA-EUR": {
+        "raw_path": "raw/coinbase/ADA-EUR/1d/20261019T090225000000Z.json",
+        "raw_sha256": "ef873619e5b647de44c717be67ea09407c5df54a36ca9f4a6b3d3221496947fa",
+        "processed_path": "processed/coinbase/ADA-EUR/1d/20261019T090255661473Z-aba4f8042fef451e.canonical.parquet",
+        "processed_sha256": "aba4f8042fef451eb4a9b7bc8d21f177262708ac877f00df575d48442b2908ac",
+        "retrieval_started_at_utc": "2026-10-19T09:02:25+00:00",
+        "earliest_bucket_utc": "2021-03-18",
+        "latest_bucket_utc": "2026-10-18",
+        "candle_count": 2041,
+        "missing_day_count": 0,
+        "leading_empty_windows": 7
+      },
+      "DOT-EUR": {
+        "raw_path": "raw/coinbase/DOT-EUR/1d/20261019T090225000000Z.json",
+        "raw_sha256": "56dbfec5e5e27bfc1486c035bbf526f770e52e65dd4720310dd44da3a993bf15",
+        "processed_path": "processed/coinbase/DOT-EUR/1d/20261019T090255731804Z-011f003282e7fb42.canonical.parquet",
+        "processed_sha256": "011f003282e7fb429001e861b8b685b0850e6989ee8675dc9c2bf3565b797b81",
+        "retrieval_started_at_utc": "2026-10-19T09:02:25+00:00",
+        "earliest_bucket_utc": "2021-06-16",
+        "latest_bucket_utc": "2026-10-18",
+        "candle_count": 1951,
+        "missing_day_count": 0,
+        "leading_empty_windows": 7
+      }
+    },
+    "candle_timestamps_unique_ascending_utc_midnight": true,
+    "last_bucket_is_last_completed_utc_day_relative_to_started_at_utc": true,
+    "sha256_matches_sidecar_and_printed_values": true,
+    "processed_metadata_fields_as_written": {
+      "provider": "coinbase",
+      "timestamp_semantics": "utc_day_bucket_start",
+      "timezone": "UTC"
+    },
+    "source_raw_file_and_sha256_lineage_correct": true,
+    "replay_determinism": {
+      "method": "copied only the two raw .json+.meta.json files into a deleted temp directory outside /mnt/data; ran build_processed_from_raw for each product",
+      "parquet_sha256_identical_to_published": true,
+      "metadata_identical_excluding_fields": ["created_at_utc", "file"],
+      "metadata_identical_excluding_fields_note": "'file' differs because the processed filename embeds the publication timestamp, which changes together with created_at_utc on every replay; the original acceptance criterion pre-authorized excluding only created_at_utc, and 'file' was added as a second necessary exclusion at review. No other metadata field differed."
+    }
+  },
+  "inferred": {
+    "volume_unit": {
+      "value": null,
+      "status": "unconfirmed",
+      "inference": "base_asset",
+      "evidence": "experiments/manifests/m5a_coinbase_discovery.json#inferred.candle_volume_is_in_base_units",
+      "note": "These values are also written in the processed metadata as volume_unit_* fields; only the inference is recorded, not a confirmed unit."
+    }
+  },
+  "observed_in_this_run_only": {
+    "rate_limit_headers": {
+      "status": "not_exposed_or_unavailable_via_sdk",
+      "candle_pages_checked": 30,
+      "pages_with_exposed_rate_limit_headers": 0,
+      "note": "This only shows that the coinbase-advanced-py 1.7.0 response objects exposed no x-ratelimit-* attributes in this run. It is not evidence about what Coinbase's HTTP response actually contained. Coinbase's public-endpoint rate limits remain unknown."
+    },
+    "request_spacing": {
+      "total_request_count": 31,
+      "run_duration_seconds": 30.828,
+      "configured_throttle_seconds": 1.0,
+      "configured_throttle_note": "This is the script's configured minimum spacing (MIN_REQUEST_INTERVAL_S in coinbase_ingest.py), not a measured value.",
+      "minimum_request_spacing_observed": null,
+      "minimum_request_spacing_status": "not_recorded"
+    },
+    "m5c_input_m5a_overlap_comparison": {
+      "method": "Single comparison, 4 days apart: M5a discovery evidence directory downloads/coinbase/discovery/20261015T141326Z/ (files 05/06/09/10/12/13, fetched 2026-10-15) against this run's raw candles (fetched 2026-10-19), per product. The M5a 2026-10-15 partial day was excluded from both sides.",
+      "ADA-EUR": {"overlap_count": 359, "identical_count": 359, "difference_count": 0},
+      "DOT-EUR": {"overlap_count": 359, "identical_count": 359, "difference_count": 0},
+      "note": "This is one comparison across a 4-day gap, not a general characterization of Coinbase's revision behavior. The general question of historical candle revisions remains open and belongs to M5c."
+    },
+    "sanity_facts_not_investigated": {
+      "ADA-EUR": {
+        "largest_abs_daily_close_to_close_pct_change_signed": 71.68,
+        "largest_change_date_utc": "2025-03-02",
+        "status": "not_investigated"
+      },
+      "DOT-EUR": {
+        "largest_abs_daily_close_to_close_pct_change_signed": 34.29,
+        "largest_change_date_utc": "2026-02-25",
+        "status": "not_investigated"
+      },
+      "note": "These are facts only, not gates, and carry no explanation or judgement."
+    }
+  },
+  "open_questions": [
+    "Coinbase's actual public-endpoint rate limits remain unknown; the SDK exposed no rate-limit headers in this run, which is a tooling observation, not evidence about the HTTP response.",
+    "Candle revision behavior beyond this single, 4-day-apart, zero-difference comparison against M5a is not characterized; pending M5c.",
+    "Candle volume_unit remains inferred (base_asset), not confirmed against an authoritative source."
+  ]
+}
