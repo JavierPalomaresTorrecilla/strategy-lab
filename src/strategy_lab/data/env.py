@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 
 DATA_ROOT_ENV_VAR = "STRATEGY_LAB_DATA_ROOT"
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class DataRootError(RuntimeError):
@@ -30,6 +31,25 @@ class DataRootNotSetError(DataRootError):
 class DataRootUnavailableError(DataRootError):
     """``STRATEGY_LAB_DATA_ROOT`` is set but unusable (missing/not a
     directory/not writable)."""
+
+
+def ensure_safe_data_root(data_root: Path, *, repository_root: Path = _REPOSITORY_ROOT) -> Path:
+    """Resolve ``data_root`` and reject a root inside the repository.
+
+    This is deliberately separate from :func:`resolve_data_root`, whose
+    legacy contract only resolves the environment-selected directory.  A
+    writer calls this additional boundary check before creating artifacts.
+    ``Path.resolve`` makes the containment check effective through symlinks.
+    """
+    resolved_root = Path(data_root).resolve()
+    resolved_repository = Path(repository_root).resolve()
+    try:
+        resolved_root.relative_to(resolved_repository)
+    except ValueError:
+        return resolved_root
+    raise DataRootError(
+        f"refusing to write data artifacts inside the repository working tree: {resolved_root}"
+    )
 
 
 def resolve_data_root() -> Path:

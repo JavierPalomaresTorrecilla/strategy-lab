@@ -42,6 +42,21 @@ splits:
       start: "2023-01-01"
       end: "2026-01-01"
 
+# M6 Coinbase boundaries are isolated from the legacy SPY `splits` namespace.
+# `strategy_lab.data.m6_splits` is the only loader for this section.
+m6_crypto_splits:
+  schema_version: 1
+  partitions:
+    - name: train
+      start: "2022-01-01"
+      end: "2024-01-01"
+    - name: validation
+      start: "2024-01-01"
+      end: "2025-01-01"
+    - name: test
+      start: "2025-01-01"
+      end: "2026-10-19"
+
 costs:
   # Placeholder assumptions only. Must be replaced with instrument- and
   # venue-specific figures before any backtest result is treated as
