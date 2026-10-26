@@ -1,0 +1,170 @@
+{
+  "manifest": "m5c_revision_audit",
+  "provenance": {
+    "git_head_before_audit_fetch": "2c49a4ec59528ae7c37c6626c5abf30e233855e9",
+    "git_head_at_manifest_time": "2c49a4ec59528ae7c37c6626c5abf30e233855e9",
+    "git_status_at_manifest_time": "clean",
+    "comparator_script_path": "scripts/compare_coinbase_raw.py",
+    "artifact_paths_relative_to": "STRATEGY_LAB_DATA_ROOT",
+    "resolved_data_root_at_audit": "/mnt/data/strategy-lab",
+    "rule_preregistration_evidence": {
+      "per_product_verdict_mapping": {
+        "statement": "The per-product comparator verdict mapping (PASS / PASS_WITH_FORMAT_DRIFT / PASS_WITH_1D_EMBARGO / PASS_WITH_7D_EMBARGO / STOP) is encoded in code, in the _verdict() function in src/strategy_lab/data/providers/coinbase_revision.py.",
+        "source": "src/strategy_lab/data/providers/coinbase_revision.py:_verdict:120-131",
+        "committed_in": "2c49a4ec59528ae7c37c6626c5abf30e233855e9",
+        "commit_timestamp_utc": "2026-10-19T10:20:04+00:00",
+        "verified_before_audit_fetch": true
+      },
+      "m6_freeze_policy": {
+        "statement": "The M6 freeze/embargo policy conditioned on the comparator verdicts (freeze baseline unchanged on PASS/PASS_WITH_FORMAT_DRIFT; exclude the final completed day on PASS_WITH_1D_EMBARGO; exclude the final 7 completed days on PASS_WITH_7D_EMBARGO; freeze nothing on STOP) is not encoded in any committed code. It was agreed in the user's M5c task specification prior to the 2026-10-26 audit fetch, not derived from or adjusted after the comparison result."
+      },
+      "no_post_hoc_adjustment": {
+        "statement": "No age bucket boundary, verdict threshold, verdict mapping, or M6 freeze decision was changed after the 2026-10-26 comparator output (both PASS, 0 differences) was observed."
+      }
+    }
+  },
+  "baseline": {
+    "label": "m5b_2026-10-19",
+    "manifest_reference": "experiments/manifests/m5b_coinbase_ingestion.json",
+    "products": {
+      "ADA-EUR": {
+        "raw_path": "raw/coinbase/ADA-EUR/1d/20261019T090225000000Z.json",
+        "raw_sha256": "ef873619e5b647de44c717be67ea09407c5df54a36ca9f4a6b3d3221496947fa",
+        "retrieval_started_at_utc": "2026-10-19T09:02:25+00:00",
+        "candle_count": 2041,
+        "earliest_bucket_utc": "2021-03-18",
+        "latest_bucket_utc": "2026-10-18"
+      },
+      "DOT-EUR": {
+        "raw_path": "raw/coinbase/DOT-EUR/1d/20261019T090225000000Z.json",
+        "raw_sha256": "56dbfec5e5e27bfc1486c035bbf526f770e52e65dd4720310dd44da3a993bf15",
+        "retrieval_started_at_utc": "2026-10-19T09:02:25+00:00",
+        "candle_count": 1951,
+        "earliest_bucket_utc": "2021-06-16",
+        "latest_bucket_utc": "2026-10-18"
+      }
+    }
+  },
+  "audit": {
+    "label": "m5c_2026-10-26",
+    "run_summary_path": "diagnostics/coinbase_ingest/20261026T102251Z.summary.json",
+    "run_summary_sha256": "796ba4cfc4fef211f298b4c958901b71285f90df5a0a33b8fa99d860f254d1a9",
+    "run_start_utc": "2026-10-26T10:22:51.160611+00:00",
+    "run_end_utc": "2026-10-26T10:23:22.436263+00:00",
+    "products": {
+      "ADA-EUR": {
+        "raw_path": "raw/coinbase/ADA-EUR/1d/20261026T102251000000Z.json",
+        "raw_sha256": "30e91a5a4e2877a5710cf06e2d742c9fa409a3da5a58ce83ead6f73c190f8bdf",
+        "retrieval_started_at_utc": "2026-10-26T10:22:51+00:00",
+        "processed_path": "processed/coinbase/ADA-EUR/1d/20261026T102322151240Z-f5679ec6828bea6f.canonical.parquet",
+        "processed_sha256": "f5679ec6828bea6fd64f8101f4111f961f0baf543b32ef6199208ff8ff6ab883",
+        "candle_count": 2048,
+        "earliest_bucket_utc": "2021-03-18",
+        "latest_bucket_utc": "2026-10-25",
+        "missing_day_count": 0
+      },
+      "DOT-EUR": {
+        "raw_path": "raw/coinbase/DOT-EUR/1d/20261026T102251000000Z.json",
+        "raw_sha256": "413d5c5ba43e37f970b04a07f975b69dc6a8715e022b4c813dd864f121935702",
+        "retrieval_started_at_utc": "2026-10-26T10:22:51+00:00",
+        "processed_path": "processed/coinbase/DOT-EUR/1d/20261026T102322401065Z-1045a40b53c9e7eb.canonical.parquet",
+        "processed_sha256": "1045a40b53c9e7ebb53521936458b5e4ea407fddab33792c995385cee9e2c672",
+        "candle_count": 1958,
+        "earliest_bucket_utc": "2021-06-16",
+        "latest_bucket_utc": "2026-10-25",
+        "missing_day_count": 0
+      }
+    }
+  },
+  "comparisons": {
+    "ADA-EUR": {
+      "report_path": "diagnostics/coinbase_revision/20261026T102834662679Z.ADA-EUR.json",
+      "report_sha256": "e1d247b5b98cc5c5a08cfcc91a5d2a6cdc1ad67973c9d49a9f6018f73a042f9d",
+      "baseline_path": "raw/coinbase/ADA-EUR/1d/20261019T090225000000Z.json",
+      "baseline_sha256": "ef873619e5b647de44c717be67ea09407c5df54a36ca9f4a6b3d3221496947fa",
+      "audit_path": "raw/coinbase/ADA-EUR/1d/20261026T102251000000Z.json",
+      "audit_sha256": "30e91a5a4e2877a5710cf06e2d742c9fa409a3da5a58ce83ead6f73c190f8bdf",
+      "reference_day": "2026-10-19",
+      "comparison_range": {"start_day": "2021-03-18", "end_day": "2026-10-18"},
+      "audit_days_after_baseline": 7,
+      "counts_total": {
+        "days_evaluated": 2041,
+        "matched_days": 2041,
+        "identical_days": 2041,
+        "differing_days": 0,
+        "semantic_differing_days": 0,
+        "difference_records_by_kind": {"value": 0, "format_only": 0, "audit_only": 0, "baseline_only": 0}
+      },
+      "counts_by_age_bucket": {
+        "1": {"days_evaluated": 1, "differing_days": 0, "semantic_differing_days": 0},
+        "2-7": {"days_evaluated": 6, "differing_days": 0, "semantic_differing_days": 0},
+        "8-30": {"days_evaluated": 23, "differing_days": 0, "semantic_differing_days": 0},
+        ">30": {"days_evaluated": 2011, "differing_days": 0, "semantic_differing_days": 0}
+      },
+      "difference_records": [],
+      "raw_representation_stable": true,
+      "verdict": "PASS"
+    },
+    "DOT-EUR": {
+      "report_path": "diagnostics/coinbase_revision/20261026T102835830224Z.DOT-EUR.json",
+      "report_sha256": "cfbad12d9551a21412ac80b849f7e75ce326d3b9a386afc5e3cdea226de24c0f",
+      "baseline_path": "raw/coinbase/DOT-EUR/1d/20261019T090225000000Z.json",
+      "baseline_sha256": "56dbfec5e5e27bfc1486c035bbf526f770e52e65dd4720310dd44da3a993bf15",
+      "audit_path": "raw/coinbase/DOT-EUR/1d/20261026T102251000000Z.json",
+      "audit_sha256": "413d5c5ba43e37f970b04a07f975b69dc6a8715e022b4c813dd864f121935702",
+      "reference_day": "2026-10-19",
+      "comparison_range": {"start_day": "2021-06-16", "end_day": "2026-10-18"},
+      "audit_days_after_baseline": 7,
+      "counts_total": {
+        "days_evaluated": 1951,
+        "matched_days": 1951,
+        "identical_days": 1951,
+        "differing_days": 0,
+        "semantic_differing_days": 0,
+        "difference_records_by_kind": {"value": 0, "format_only": 0, "audit_only": 0, "baseline_only": 0}
+      },
+      "counts_by_age_bucket": {
+        "1": {"days_evaluated": 1, "differing_days": 0, "semantic_differing_days": 0},
+        "2-7": {"days_evaluated": 6, "differing_days": 0, "semantic_differing_days": 0},
+        "8-30": {"days_evaluated": 23, "differing_days": 0, "semantic_differing_days": 0},
+        ">30": {"days_evaluated": 1921, "differing_days": 0, "semantic_differing_days": 0}
+      },
+      "difference_records": [],
+      "raw_representation_stable": true,
+      "verdict": "PASS"
+    }
+  },
+  "representation_drift": {
+    "note": "No format_only difference records were produced by either comparison (difference_records_by_kind.format_only = 0 for both products at every age bucket). raw_representation_stable is true for both products. There is no representation drift to report separately from semantic revisions."
+  },
+  "overall_outcome": {
+    "per_product_verdicts": {"ADA-EUR": "PASS", "DOT-EUR": "PASS"},
+    "worst_case_rule_applied": "No semantic diffs and no format drift in either product -> PASS.",
+    "verdict": "PASS"
+  },
+  "m6_freeze_instruction": {
+    "outcome": "PASS",
+    "embargo_days": 0,
+    "instruction": "Freeze the M5b 2026-10-19 baseline unchanged. No embargo days are excluded.",
+    "frozen_dataset": {
+      "last_included_bucket": "2026-10-18",
+      "half_open_frozen_end": "2026-10-19",
+      "ADA-EUR": {
+        "raw_path": "raw/coinbase/ADA-EUR/1d/20261019T090225000000Z.json",
+        "raw_sha256": "ef873619e5b647de44c717be67ea09407c5df54a36ca9f4a6b3d3221496947fa",
+        "end_date": "2026-10-18",
+        "candle_count": 2041
+      },
+      "DOT-EUR": {
+        "raw_path": "raw/coinbase/DOT-EUR/1d/20261019T090225000000Z.json",
+        "raw_sha256": "56dbfec5e5e27bfc1486c035bbf526f770e52e65dd4720310dd44da3a993bf15",
+        "end_date": "2026-10-18",
+        "candle_count": 1951
+      }
+    },
+    "audit_only_days_not_admitted_to_m6": {
+      "statement": "The 2026-10-19 through 2026-10-25 candles present only in the 2026-10-26 audit snapshots (and not in the frozen M5b baseline) were not incorporated into the M6 dataset. M6 uses the M5b 2026-10-19 baseline exclusively, ending 2026-10-18.",
+      "excluded_range": {"start_day": "2026-10-19", "end_day": "2026-10-25"}
+    }
+  }
+}
