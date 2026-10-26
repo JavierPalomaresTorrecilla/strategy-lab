@@ -47,12 +47,18 @@ def cagr(start_equity: float, end_equity: float, years: float) -> float:
     return (end_equity / start_equity) ** (1.0 / years) - 1.0
 
 
-def annualized_volatility(daily_returns: list[float]) -> float | InsufficientSample:
+def annualized_volatility(
+    daily_returns: list[float], periods_per_year: int = TRADING_DAYS_PER_YEAR
+) -> float | InsufficientSample:
     """Sample standard deviation of ``daily_returns``, annualized by
-    ``sqrt(TRADING_DAYS_PER_YEAR)``. Requires at least 2 observations."""
+    ``sqrt(periods_per_year)``. Requires at least 2 observations.
+
+    ``periods_per_year`` defaults to ``TRADING_DAYS_PER_YEAR`` (252, the
+    legacy/SPY convention). Pass ``365`` explicitly for a dataset with no
+    non-trading days (e.g. Coinbase crypto daily)."""
     if len(daily_returns) < 2:
         return InsufficientSample("annualized_volatility", required=2, actual=len(daily_returns))
-    return statistics.stdev(daily_returns) * (TRADING_DAYS_PER_YEAR**0.5)
+    return statistics.stdev(daily_returns) * (periods_per_year**0.5)
 
 
 def local_max_drawdown(equity_values: list[float], start_equity: float) -> float:
@@ -78,7 +84,9 @@ def exposure(position_flags: list[bool]) -> float:
 
 
 def sharpe_like(
-    daily_returns: list[float], risk_free_rate: float = 0.0
+    daily_returns: list[float],
+    risk_free_rate: float = 0.0,
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
 ) -> float | InsufficientSample | NotApplicable:
     """Descriptive Sharpe-like ratio from daily equity returns -- not a
     formal significance result. Gated on a minimum number of *daily*
@@ -86,22 +94,26 @@ def sharpe_like(
 
     ``risk_free_rate`` is an ANNUAL rate (e.g. ``0.02`` for 2%/year), not a
     daily one -- it is converted to a daily rate via
-    ``risk_free_rate / TRADING_DAYS_PER_YEAR`` before being subtracted from
-    each daily return. This matches ``config/research.yaml``'s
+    ``risk_free_rate / periods_per_year`` before being subtracted from each
+    daily return. This matches ``config/research.yaml``'s
     ``temporal_validation.risk_free_rate`` (currently ``0.0``, so this
     conversion is presently a no-op either way).
+
+    ``periods_per_year`` defaults to ``TRADING_DAYS_PER_YEAR`` (252, the
+    legacy/SPY convention). Pass ``365`` explicitly for a dataset with no
+    non-trading days (e.g. Coinbase crypto daily).
     """
     if len(daily_returns) < MIN_DAILY_OBSERVATIONS_FOR_SHARPE:
         return InsufficientSample(
             "sharpe_like", required=MIN_DAILY_OBSERVATIONS_FOR_SHARPE, actual=len(daily_returns)
         )
-    daily_risk_free = risk_free_rate / TRADING_DAYS_PER_YEAR
+    daily_risk_free = risk_free_rate / periods_per_year
     excess_returns = [r - daily_risk_free for r in daily_returns]
     stdev = statistics.stdev(excess_returns)
     if stdev == 0:
         return NotApplicable("sharpe_like", "zero return volatility")
     mean_excess = statistics.fmean(excess_returns)
-    return (mean_excess / stdev) * (TRADING_DAYS_PER_YEAR**0.5)
+    return (mean_excess / stdev) * (periods_per_year**0.5)
 
 
 def hit_rate(round_trip_pnls: list[float]) -> float | InsufficientSample:

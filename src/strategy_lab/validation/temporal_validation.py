@@ -264,6 +264,7 @@ def evaluate(
     burn_in_window: EvaluationWindow,
     evaluation_windows: list[EvaluationWindow],
     risk_free_rate: float = 0.0,
+    periods_per_year: int = robustness_metrics.TRADING_DAYS_PER_YEAR,
 ) -> TemporalValidationResult:
     """Compute the full M3 temporal-validation report from one continuous
     ``strategy_lab.backtest.engine.BacktestResult`` spanning
@@ -273,6 +274,14 @@ def evaluate(
     call over that whole range -- this function does not itself run the
     backtest, so it never has the opportunity to reset capital or state at
     a boundary; it only slices the one continuous result it's given.
+
+    ``periods_per_year`` is forwarded to ``robustness_metrics.annualized_volatility``
+    and ``robustness_metrics.sharpe_like`` only -- the two metrics whose
+    numerical result actually depends on the trading-days-per-year
+    convention. ``robustness_metrics.cagr`` uses exact elapsed calendar
+    years and is unaffected, so it does not take this parameter. Defaults
+    to 252 (legacy/SPY); pass 365 explicitly for Coinbase crypto daily
+    data, which has no non-trading days.
     """
     equity_curve = backtest_result.equity_curve
     timestamps = equity_curve["timestamp"]
@@ -295,7 +304,7 @@ def evaluate(
         window_units = units_values.loc[mask].tolist()
 
         daily_returns = _daily_returns(start_equity, window_equity)
-        volatility = robustness_metrics.annualized_volatility(daily_returns)
+        volatility = robustness_metrics.annualized_volatility(daily_returns, periods_per_year)
         local_dd = robustness_metrics.local_max_drawdown(window_equity, start_equity)
         expo = robustness_metrics.exposure([unit != 0 for unit in window_units])
 
@@ -333,10 +342,10 @@ def evaluate(
     agg_equity = equity_values.loc[agg_mask].tolist()
     agg_units = units_values.loc[agg_mask].tolist()
     agg_daily_returns = _daily_returns(agg_start_equity, agg_equity)
-    agg_volatility = robustness_metrics.annualized_volatility(agg_daily_returns)
+    agg_volatility = robustness_metrics.annualized_volatility(agg_daily_returns, periods_per_year)
     agg_drawdown = robustness_metrics.local_max_drawdown(agg_equity, agg_start_equity)
     agg_exposure = robustness_metrics.exposure([unit != 0 for unit in agg_units])
-    agg_sharpe = robustness_metrics.sharpe_like(agg_daily_returns, risk_free_rate)
+    agg_sharpe = robustness_metrics.sharpe_like(agg_daily_returns, risk_free_rate, periods_per_year)
 
     eligible = eligible_round_trips(round_trips, evaluation_start, evaluation_end)
     eligible_pnls = [rt.realized_pnl for rt in eligible]

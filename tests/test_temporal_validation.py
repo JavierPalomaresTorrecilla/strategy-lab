@@ -271,3 +271,52 @@ def test_evaluate_smoke_test_produces_sensible_aggregate() -> None:
     # Below the 20-round-trip gate on a 2-year synthetic sample -- must be
     # an explicit sentinel, not a float.
     assert isinstance(agg.hit_rate, InsufficientSample)
+
+
+def test_evaluate_default_periods_per_year_matches_no_arg_call() -> None:
+    # The legacy/SPY call site never passes periods_per_year -- its output
+    # must be identical to explicitly passing the 252 default.
+    ohlcv = random_walk_ohlcv("2010-01-01", "2012-12-31", seed=3)
+    from strategy_lab.strategies.ema_crossover import generate_signals
+
+    config = BacktestConfig(initial_cash=100_000.0, commission_rate=0.001, slippage_rate=0.0005)
+    signal = generate_signals(ohlcv["close"], 10, 30)["signal"]
+    result = run_backtest(ohlcv, signal, config)
+
+    burn_in_window, evaluation_windows = build_windows(
+        burn_in_year=2010, evaluation_years=[2011, 2012]
+    )
+    default_result = evaluate(result, burn_in_window, evaluation_windows)
+    explicit_252_result = evaluate(result, burn_in_window, evaluation_windows, periods_per_year=252)
+
+    assert default_result.aggregate_metrics == explicit_252_result.aggregate_metrics
+    for default_window, explicit_window in zip(
+        default_result.window_metrics, explicit_252_result.window_metrics, strict=True
+    ):
+        assert default_window == explicit_window
+
+
+def test_evaluate_explicit_365_changes_volatility_and_sharpe() -> None:
+    ohlcv = random_walk_ohlcv("2010-01-01", "2012-12-31", seed=3)
+    from strategy_lab.strategies.ema_crossover import generate_signals
+
+    config = BacktestConfig(initial_cash=100_000.0, commission_rate=0.001, slippage_rate=0.0005)
+    signal = generate_signals(ohlcv["close"], 10, 30)["signal"]
+    result = run_backtest(ohlcv, signal, config)
+
+    burn_in_window, evaluation_windows = build_windows(
+        burn_in_year=2010, evaluation_years=[2011, 2012]
+    )
+    result_252 = evaluate(result, burn_in_window, evaluation_windows)
+    result_365 = evaluate(result, burn_in_window, evaluation_windows, periods_per_year=365)
+
+    agg_252 = result_252.aggregate_metrics
+    agg_365 = result_365.aggregate_metrics
+    assert isinstance(agg_252.annualized_volatility, float)
+    assert isinstance(agg_365.annualized_volatility, float)
+    assert agg_365.annualized_volatility == pytest.approx(
+        agg_252.annualized_volatility * (365 / 252) ** 0.5
+    )
+    assert agg_365.annualized_volatility != pytest.approx(agg_252.annualized_volatility)
+    # cagr is unaffected -- it does not depend on periods_per_year at all.
+    assert agg_252.cagr == agg_365.cagr

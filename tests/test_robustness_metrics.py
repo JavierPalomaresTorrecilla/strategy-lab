@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import random
+
 import pytest
 
 from strategy_lab.validation.robustness_metrics import (
     MIN_DAILY_OBSERVATIONS_FOR_SHARPE,
     MIN_ELIGIBLE_ROUND_TRIPS,
+    TRADING_DAYS_PER_YEAR,
     InsufficientSample,
     NotApplicable,
     annualized_volatility,
@@ -36,6 +39,23 @@ def test_annualized_volatility_computes_with_enough_observations() -> None:
     result = annualized_volatility([0.01, -0.01, 0.02, -0.02])
     assert isinstance(result, float)
     assert result > 0
+
+
+def test_annualized_volatility_default_periods_per_year_is_252() -> None:
+    daily_returns = [0.01, -0.01, 0.02, -0.02]
+    assert annualized_volatility(daily_returns) == annualized_volatility(
+        daily_returns, periods_per_year=TRADING_DAYS_PER_YEAR
+    )
+
+
+def test_annualized_volatility_explicit_365_differs_from_default() -> None:
+    daily_returns = [0.01, -0.01, 0.02, -0.02]
+    default_result = annualized_volatility(daily_returns)
+    crypto_result = annualized_volatility(daily_returns, periods_per_year=365)
+    assert isinstance(default_result, float)
+    assert isinstance(crypto_result, float)
+    assert crypto_result == pytest.approx(default_result * (365 / TRADING_DAYS_PER_YEAR) ** 0.5)
+    assert crypto_result != pytest.approx(default_result)
 
 
 def test_local_max_drawdown_peak_initialized_at_start_equity() -> None:
@@ -70,8 +90,6 @@ def test_sharpe_like_insufficient_sample() -> None:
 
 
 def test_sharpe_like_computes_with_enough_observations() -> None:
-    import random
-
     rng = random.Random(42)
     daily_returns = [rng.gauss(0.0005, 0.01) for _ in range(MIN_DAILY_OBSERVATIONS_FOR_SHARPE)]
     result = sharpe_like(daily_returns)
@@ -82,6 +100,34 @@ def test_sharpe_like_zero_volatility_not_applicable() -> None:
     daily_returns = [0.001] * MIN_DAILY_OBSERVATIONS_FOR_SHARPE
     result = sharpe_like(daily_returns)
     assert isinstance(result, NotApplicable)
+
+
+def test_sharpe_like_default_periods_per_year_is_252() -> None:
+    rng = random.Random(42)
+    daily_returns = [rng.gauss(0.0005, 0.01) for _ in range(MIN_DAILY_OBSERVATIONS_FOR_SHARPE)]
+    assert sharpe_like(daily_returns) == sharpe_like(
+        daily_returns, periods_per_year=TRADING_DAYS_PER_YEAR
+    )
+
+
+def test_sharpe_like_explicit_365_differs_from_default() -> None:
+    rng = random.Random(42)
+    daily_returns = [rng.gauss(0.0005, 0.01) for _ in range(MIN_DAILY_OBSERVATIONS_FOR_SHARPE)]
+    default_result = sharpe_like(daily_returns)
+    crypto_result = sharpe_like(daily_returns, periods_per_year=365)
+    assert isinstance(default_result, float)
+    assert isinstance(crypto_result, float)
+    assert crypto_result == pytest.approx(default_result * (365 / TRADING_DAYS_PER_YEAR) ** 0.5)
+    assert crypto_result != pytest.approx(default_result)
+
+
+def test_cagr_signature_unchanged_no_periods_per_year() -> None:
+    # cagr uses exact elapsed calendar years, independent of any
+    # trading-days-per-year convention -- it must not accept or need a
+    # periods_per_year parameter.
+    import inspect
+
+    assert "periods_per_year" not in inspect.signature(cagr).parameters
 
 
 def test_hit_rate_insufficient_sample() -> None:
